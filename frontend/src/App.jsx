@@ -1,3 +1,4 @@
+import buildingImg from './assets/buildsci.jpg';
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate, useLocation, useParams } from 'react-router-dom';
 import { 
@@ -79,7 +80,7 @@ export default function App() {
       return { 
         icon: <Briefcase className="w-4 h-4 text-emerald-600" />, 
         label: 'บุคลากร / อาจารย์', 
-        bg: 'bg-emerald-100' 
+        bg: 'bg-emerald-100'  
       };
     }
     return { 
@@ -287,7 +288,7 @@ function NavigationTabs({ user }) {
 }
 
 // ----------------------------------------------------------------------
-// 📅 1. หน้าตารางการใช้งาน (รูปที่ 1 - แสดงข้อมูลละเอียด ชัดเจน ไร้คำขอที่โดนปฏิเสธ)
+// 📅 1. หน้าตารางการใช้งาน (รูปที่ 1 - แสดงข้อมูลรายละเอียด ชัดเจน ไร้คำขอที่โดนปฏิเสธ)
 // ----------------------------------------------------------------------
 
 function SchedulePage() {
@@ -872,17 +873,23 @@ function RoomListPage({ user }) {
         {filteredRooms.map((room) => (
           <div key={room.id} className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col">
             
-            <div className="relative h-48 w-full overflow-hidden bg-slate-100">
+            {/* ส่วนรูปภาพที่กดจองได้ */}
+            <Link 
+              to={user ? `/book/${room.id}` : '/login'}
+              onClick={handleBookClick}
+              className="block relative h-48 w-full overflow-hidden bg-slate-100 cursor-pointer hover:opacity-90 transition"
+            >
               <img src={room.image} alt={room.name} className="w-full h-full object-cover object-center" />
-              <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-lg">
+              <div className="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold px-3 py-1 rounded-full">
                 {room.number || `ห้อง ${room.id}`}
               </div>
-              <div className="absolute top-3 right-3 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
+              <div className="absolute top-3 right-3 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-semibold px-2.5 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
                 พร้อมใช้งาน
               </div>
-            </div>
+            </Link>
 
+            {/* รายละเอียดห้องพัก */}
             <div className="p-5 flex-1 flex flex-col justify-between">
               <div>
                 <div className="text-[11px] font-semibold text-indigo-600 mb-1">
@@ -894,14 +901,16 @@ function RoomListPage({ user }) {
                 </p>
               </div>
 
-              <Link 
-                to={user ? `/book/${room.id}` : '/login'} 
+              {/* ปุ่มกดจองห้อง */}
+              <Link
+                to={user ? `/book/${room.id}` : '/login'}
                 onClick={handleBookClick}
-                className="mt-5 w-full block text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2.5 rounded-xl transition border border-indigo-200/60"
+                className="mt-5 w-full block text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs py-2.5 rounded-xl transition"
               >
                 {user ? (user.role === 'ADMIN' ? 'โหมด Admin (สลับโหมดเพื่อจอง)' : 'จองห้องนี้') : 'เข้าสู่ระบบเพื่อจอง'}
               </Link>
             </div>
+
           </div>
         ))}
       </div>
@@ -962,13 +971,12 @@ function BookingPage({ user }) {
     try {
       await createBooking({ ...form, room_id: roomId });
       alert('ส่งคำขอจองห้องสำเร็จ! รอการอนุมัติจากแอดมิน');
-      navigate('/schedule');
+      navigate('/my-bookings');
     } catch (err) {
       alert(err.response?.data?.message || 'ส่งคำขอจองห้องเรียบร้อยแล้ว');
-      if (err.response?.status !== 409) navigate('/schedule');
-    } finally {
-      setLoading(false);
+      if (err.response?.status !== 409) navigate('/my-bookings');
     }
+    setLoading(false);
   };
 
   return (
@@ -1081,11 +1089,12 @@ function MyBookingsPage({ user }) {
 
   useEffect(() => {
     if (user) {
+      setLoading(true);
       fetchBookings()
         .then((res) => {
-          // 🛡️ กรองเฉพาะรายการจองของผู้ใช้งานที่กำลังล็อกอินอยู่เท่านั้น
-          const filtered = res.data.filter(
-            (b) => String(b.user_id) === String(user.id) || b.user_email === user.email
+          const data = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+          const filtered = data.filter(
+            (b) => String(b?.user_id) === String(user?.id) || (b?.user_email && b?.user_email === user?.email)
           );
           setMyBookings(filtered);
         })
@@ -1101,11 +1110,11 @@ function MyBookingsPage({ user }) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
-        <User className="w-5 h-5 text-indigo-600" />
+        <span className="text-2xl">👤</span>
         <div>
           <h3 className="text-xl font-bold text-slate-900">รายการจองห้องของฉัน</h3>
           <p className="text-xs text-slate-500">
-            ประวัติและสถานะการจองห้องเรียน/ประชุมเฉพาะบัญชีของคุณ ({user.title ? `${user.title} ${user.name}` : user.name})
+            ประวัติและสถานะการจองห้องเรียน/ประชุมเฉพาะบัญชีของคุณ ({user?.title ? `${user.title} ${user.name}` : user?.name || ''})
           </p>
         </div>
       </div>
@@ -1116,15 +1125,15 @@ function MyBookingsPage({ user }) {
         </div>
       ) : myBookings.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center shadow-sm max-w-2xl mx-auto my-8">
-          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Calendar className="w-8 h-8" />
+          <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl">
+            📅
           </div>
           <h4 className="text-lg font-bold text-slate-800">ยังไม่มีรายการจองห้องของคุณ</h4>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
             คุณยังไม่ได้ทำการจองห้องใดๆ สามารถเลือกดูห้องพักและกดจองได้ทันที
           </p>
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="mt-6 inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition"
           >
             ไปที่หน้าเลือกห้องจอง
@@ -1133,18 +1142,18 @@ function MyBookingsPage({ user }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {myBookings.map((b) => (
-            <div key={b.id} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+            <div key={b?.id || Math.random()} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
               <div className="flex justify-between items-start border-b border-slate-100 pb-3">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">{b.room_name}</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">{b?.room_name || `ห้องจอง #${b?.id}`}</h4>
                   <p className="text-xs text-indigo-600 font-semibold mt-0.5">
-                    📅 {b.booking_date} | ⏰ {b.start_time} - {b.end_time} น.
+                    📅 {b?.booking_date} | ⏰ {b?.start_time} - {b?.end_time} น.
                   </p>
                 </div>
                 <div>
-                  {b.status === 'APPROVED' || b.status === 'CONFIRMED' ? (
+                  {b?.status === 'APPROVED' || b?.status === 'CONFIRMED' ? (
                     <span className="bg-emerald-100 text-emerald-700 font-bold px-3 py-1 rounded-full text-[10px]">✓ อนุมัติแล้ว</span>
-                  ) : b.status === 'REJECTED' ? (
+                  ) : b?.status === 'REJECTED' ? (
                     <span className="bg-red-100 text-red-700 font-bold px-3 py-1 rounded-full text-[10px]">✕ ปฏิเสธ</span>
                   ) : (
                     <span className="bg-amber-100 text-amber-700 font-bold px-3 py-1 rounded-full text-[10px]">⏳ รออนุมัติ</span>
@@ -1153,10 +1162,10 @@ function MyBookingsPage({ user }) {
               </div>
 
               <div className="text-xs space-y-1 text-slate-600">
-                <div>👥 จำนวนผู้เข้าร่วม: <span className="font-semibold text-slate-800">{b.attendees_count || 1} คน</span></div>
+                <div>👥 จำนวนผู้เข้าร่วม: <span className="font-semibold text-slate-800">{b?.attendees_count || 1} คน</span></div>
                 <div className="mt-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                   <span className="text-[10px] text-slate-400 font-semibold block mb-0.5">วัตถุประสงค์:</span>
-                  <span className="font-medium text-slate-800 italic">"{b.purpose}"</span>
+                  <span className="font-medium text-slate-800 italic">"{b?.purpose || '-'}"</span>
                 </div>
               </div>
             </div>
@@ -1200,7 +1209,7 @@ function RegisterPage() {
       alert(err.response?.data?.message || 'สมัครไม่สำเร็จ');
     }
   };
-
+  
   return (
     <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200/80 my-8">
       <h3 className="text-2xl font-bold text-slate-900 text-center mb-6">ลงทะเบียนผู้ใช้งาน</h3>
@@ -1366,6 +1375,7 @@ function LoginPage({ setUser }) {
     </div>
   );
 }
+
 // ----------------------------------------------------------------------
 // 🗺️ 8. หน้าแผนที่อาคารและข้อมูลติดต่อ (Map Page)
 // ----------------------------------------------------------------------
@@ -1377,7 +1387,6 @@ function MapPage() {
         <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
           🗺️ แผนที่และข้อมูลการเดินทาง
         </h3>
-       
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -1442,6 +1451,7 @@ function MapPage() {
             <p>• กรุณานำบัตรนิสิต/บัตรบุคลากรมาติดต่อรับกุญแจห้องก่อนเวลาจอง 15 นาที</p>
             <p>• หากต้องการใช้อุปกรณ์เพิ่มเติม โปรดระบุในหมายเหตุการจอง</p>
           </div>
+          <img src={buildingImg} alt="รูปอาคาร" className="w-full h-auto rounded-lg" />
         </div>
 
         {/* ➡️ ฝั่งขวา: แผนที่ Google Maps */}
@@ -1457,7 +1467,6 @@ function MapPage() {
             referrerPolicy="no-referrer-when-downgrade"
           ></iframe>
         </div>
-
       </div>
     </div>
   );
